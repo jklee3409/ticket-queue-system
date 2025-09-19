@@ -20,4 +20,4 @@ spring:
 
 queue:
   settings:
-    max-active-users: 1000
+    max-active-users: 10
