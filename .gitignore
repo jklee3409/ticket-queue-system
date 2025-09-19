@@ -1,0 +1,83 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+# === Java ===
+*.class
+*.jar
+*.war
+*.ear
+
+# === JVM crash logs ===
+hs_err_pid*
+replay_pid*
+
+# === IntelliJ IDEA ===
+.idea/
+
+# === Build outputs ===
+/build/
+/bin/
+/target/
+
+# === Logs ===
+*.log
+logs/
+log/
+
+# === OS (Windows) ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# === Gradle ===
+.gradle/
+/!gradle/wrapper/gradle-wrapper.jar
+
+# === Redis / Kafka ===
+dump.rdb
+appendonly.aof
+kafka-logs/
+zookeeper/
+
+# === Environment files ===
+.env
+*.env
+.env.*
+
