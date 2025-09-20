@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class ActiveUserService {
+public class EntryQueueService {
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<List> popRandomActiveUsersScript;
@@ -19,13 +19,5 @@ public class ActiveUserService {
         return redisTemplate.opsForSet().size(RedisConstant.ACTIVE_USERS_KEY);
     }
 
-    public void popRandomActiveUsers() {
-        int count = (int) (Math.random() * 10) + 1;
 
-        redisTemplate.execute(
-                popRandomActiveUsersScript,
-                Collections.singletonList(RedisConstant.ACTIVE_USERS_KEY),
-                String.valueOf(count)
-        );
-    }
 }
