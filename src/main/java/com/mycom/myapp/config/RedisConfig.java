@@ -21,7 +21,7 @@ public class RedisConfig {
     @Bean
     public RedisScript<List> popRandomActiveUsersScript() {
         DefaultRedisScript<List> script = new DefaultRedisScript<>();
-        script.setLocation(new ClassPathResource("scripts/redis/pop_random_Active_users.lua"));
+        script.setLocation(new ClassPathResource("scripts/redis/pop_random_active_users.lua"));
         script.setResultType(List.class);
         return script;
     }

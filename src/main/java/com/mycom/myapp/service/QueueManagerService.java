@@ -3,7 +3,9 @@ package com.mycom.myapp.service;
 import com.mycom.myapp.constant.RedisConstant;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ public class QueueManagerService {
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<List> moveUsersScript;
+    private final SseService sseService;
 
     private static final Duration ENTRY_VALID_DURATION = Duration.ofMinutes(3);
 
@@ -40,13 +43,22 @@ public class QueueManagerService {
                 String entryKey = RedisConstant.ENTRY_TOKEN_KEY + entryToken;
                 String userKey = RedisConstant.USER_TOKEN_KEY + userId;
 
+                long ttlSeconds = ENTRY_VALID_DURATION.getSeconds();
+                long expiresAt = System.currentTimeMillis() + ttlSeconds * 1000;
+
                 // 양방향 맵핑 설정
                 redisTemplate.executePipelined((RedisCallback<?>) connection -> {
                     StringRedisConnection redisConnection = (StringRedisConnection) connection;
-                    redisConnection.setEx(entryKey, ENTRY_VALID_DURATION.getSeconds(), userId);
-                    redisConnection.setEx(userKey, ENTRY_VALID_DURATION.getSeconds(), entryToken);
+                    redisConnection.setEx(entryKey, ttlSeconds, userId);
+                    redisConnection.setEx(userKey, ttlSeconds, entryToken);
                     return null;
                 });
+
+                // SSE 로 토큰 및 만료 시간 전달
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("entryToken", entryToken);
+                payload.put("expiresAt", expiresAt);
+                sseService.sentToClient(userId, "ENTRY_TOKEN", payload);
             });
 
             log.info("{} users moved from waiting to active queue.", movedUsers.size());
@@ -57,6 +69,6 @@ public class QueueManagerService {
 
     public boolean isValidEntryToken(String entryToken) {
         String key = RedisConstant.ENTRY_TOKEN_KEY + entryToken;
-        return redisTemplate.hasKey(key);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
 }
