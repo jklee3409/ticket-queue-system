@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>대기열 대기 페이지</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 24px; }
+    .card { max-width: 680px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .row { display: flex; gap: 8px; }
+    input, button { padding: 10px 12px; font-size: 14px; }
+    input { flex: 1; border: 1px solid #d1d5db; border-radius: 8px; }
+    button { border: 0; background: #2563eb; color: #fff; border-radius: 8px; cursor: pointer; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .muted { color: #6b7280; }
+    .rank { font-size: 40px; font-weight: 700; margin: 8px 0; }
+    .event { background: #f9fafb; padding: 12px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; white-space: pre-wrap; }
+    .success { color: #16a34a; }
+    .error { color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>대기열 입장</h2>
+    <p class="muted">사용자 ID를 입력하고 대기열에 입장하세요. 입장 후 실시간 순위를 확인할 수 있습니다.</p>
+    <div class="row" style="margin-top: 12px;">
+      <input id="userId" placeholder="예) user-123" />
+      <button id="enterBtn">대기열 입장</button>
+    </div>
+
+    <hr style="margin: 20px 0;" />
+
+    <div id="status" class="muted">아직 입장하지 않았습니다.</div>
+
+    <div style="margin-top: 16px;">
+      <div class="muted">현재 대기 순위</div>
+      <div id="rank" class="rank">-</div>
+      <div id="lastEvent" class="event" style="display:none;"></div>
+    </div>
+
+    <div id="activeNotice" style="display:none; margin-top: 12px;" class="success">
+      입장 차례가 되었습니다! 잠시 후 참가 페이지로 이동합니다...
+    </div>
+
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const userIdInput = $("userId");
+    const enterBtn = $("enterBtn");
+    const statusEl = $("status");
+    const rankEl = $("rank");
+    const lastEventEl = $("lastEvent");
+    const activeNoticeEl = $("activeNotice");
+
+    let es;
+
+    function logLastEvent(name, data) {
+      lastEventEl.style.display = 'block';
+      lastEventEl.textContent = `[${new Date().toLocaleTimeString()}] ${name}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
+    }
+
+    async function fetchInitialRank(userId) {
+      try {
+        const res = await fetch(`/api/queue/rank/${encodeURIComponent(userId)}`);
+        if (!res.ok) return;
+        const rank = await res.json();
+        rankEl.textContent = rank >= 0 ? `#${rank + 1}` : '-';
+      } catch (_) {}
+    }
+
+    function subscribe(userId) {
+      if (es) es.close();
+      es = new EventSource(`/api/sse/subscribe/${encodeURIComponent(userId)}`);
+
+      es.addEventListener('sse-connected', (e) => {
+        statusEl.textContent = 'SSE 연결됨 (실시간 업데이트 수신 중)';
+        logLastEvent('sse-connected', e.data);
+      });
+
+      es.addEventListener('RANK_UPDATE', (e) => {
+        const rankNumber = Number(e.data);
+        rankEl.textContent = isFinite(rankNumber) ? `#${rankNumber}` : '-';
+        logLastEvent('RANK_UPDATE', e.data);
+      });
+
+      es.addEventListener('ACTIVE_TURN', (e) => {
+        activeNoticeEl.style.display = 'block';
+        logLastEvent('ACTIVE_TURN', e.data);
+      });
+
+      es.addEventListener('ENTRY_TOKEN', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          const { entryToken, expiresAt } = payload;
+          logLastEvent('ENTRY_TOKEN', payload);
+          // 참가 페이지로 이동
+          const url = new URL(window.location.origin + '/entry.html');
+          url.searchParams.set('userId', userId);
+          url.searchParams.set('token', entryToken);
+          url.searchParams.set('expiresAt', String(expiresAt));
+          window.location.href = url.toString();
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      es.onerror = () => {
+        statusEl.textContent = 'SSE 연결 오류 (재시도하려면 새로고침)';
+      };
+    }
+
+    enterBtn.addEventListener('click', async () => {
+      const userId = userIdInput.value.trim();
+      if (!userId) {
+        alert('userId를 입력해 주세요.');
+        userIdInput.focus();
+        return;
+      }
+
+      enterBtn.disabled = true;
+      try {
+        const res = await fetch('/api/queue/enter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: new URLSearchParams({ userId }).toString(),
+        });
+        const text = await res.text();
+        statusEl.textContent = res.ok ? text : `오류: ${text}`;
+
+        subscribe(userId);
+        fetchInitialRank(userId);
+      } catch (err) {
+        statusEl.textContent = '요청 실패';
+      } finally {
+        enterBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
