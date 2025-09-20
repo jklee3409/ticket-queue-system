@@ -1,6 +1,7 @@
 package com.mycom.myapp.service;
 
 import com.mycom.myapp.constant.RedisConstant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -19,5 +20,19 @@ public class EntryQueueService {
         return redisTemplate.opsForSet().size(RedisConstant.ACTIVE_USERS_KEY);
     }
 
+    public void popRandomActiveUsers() {
+        int count = (int) (Math.random() * 10) + 1;
 
+        List<String> keys = Arrays.asList(
+                RedisConstant.ACTIVE_USERS_KEY,
+                RedisConstant.USER_TOKEN_KEY,
+                RedisConstant.ENTRY_TOKEN_KEY
+        );
+
+        redisTemplate.execute(
+                popRandomActiveUsersScript,
+                keys,
+                String.valueOf(count)
+        );
+    }
 }

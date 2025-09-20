@@ -22,12 +22,14 @@ public class QueueScheduler {
 
     private final QueueManagerService queueManagerService;
     private final WaitingQueueService waitingQueueService;
-    private final EntryQueueService activeUserService;
+    private final EntryQueueService entryQueueService;
     private final SseService sseService;
 
     @Scheduled(fixedDelay = 3000)
     public void processQueue() {
-        Long currentActiveCount = activeUserService.getActiveUserCount();
+        entryQueueService.popRandomActiveUsers();
+
+        Long currentActiveCount = entryQueueService.getActiveUserCount();
         if (currentActiveCount == null) {
             log.error("Active user set (key: {}) does not exist in Redis.", RedisConstant.ACTIVE_USERS_KEY);
             return;

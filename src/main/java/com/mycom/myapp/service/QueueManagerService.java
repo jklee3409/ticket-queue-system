@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.StringRedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -35,13 +37,26 @@ public class QueueManagerService {
 
             movedUsers.forEach(userId -> {
                 String entryToken = UUID.randomUUID().toString();
-                String key = RedisConstant.ENTRY_TOKEN_KEY + entryToken;
-                redisTemplate.opsForValue().set(key, userId, ENTRY_VALID_DURATION);
+                String entryKey = RedisConstant.ENTRY_TOKEN_KEY + entryToken;
+                String userKey = RedisConstant.USER_TOKEN_KEY + userId;
+
+                // 양방향 맵핑 설정
+                redisTemplate.executePipelined((RedisCallback<?>) connection -> {
+                    StringRedisConnection redisConnection = (StringRedisConnection) connection;
+                    redisConnection.setEx(entryKey, ENTRY_VALID_DURATION.getSeconds(), userId);
+                    redisConnection.setEx(userKey, ENTRY_VALID_DURATION.getSeconds(), entryToken);
+                    return null;
+                });
             });
 
             log.info("{} users moved from waiting to active queue.", movedUsers.size());
         }
 
         return movedUsers;
+    }
+
+    public boolean isValidEntryToken(String entryToken) {
+        String key = RedisConstant.ENTRY_TOKEN_KEY + entryToken;
+        return redisTemplate.hasKey(key);
     }
 }
